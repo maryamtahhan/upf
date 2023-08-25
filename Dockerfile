@@ -5,14 +5,37 @@
 # Multi-stage Dockerfile
 
 # Stage bess-deps: fetch BESS dependencies
-FROM ghcr.io/omec-project/upf-epc/bess_build AS bess-deps
+FROM ubuntu:focal AS bess-deps
+ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && \
-    apt-get install -y git
+    apt-get install -y git \
+    build-essential ninja-build \
+    python3-pip pkg-config \
+    libnuma-dev python3-pyelftools \
+    clang llvm lld m4 vim wget  \
+    gcc-multilib libdbus-1-dev \
+    libgoogle-glog-dev \
+    apt-transport-https \
+    ca-certificates g++ make pkg-config \
+    libunwind8-dev liblzma-dev zlib1g-dev \
+    libpcap-dev libssl-dev libnuma-dev git \
+    libgflags-dev libgoogle-glog-dev \
+    libgraph-easy-perl libgtest-dev libgrpc++-dev \
+    libprotobuf-dev libc-ares-dev libbenchmark-dev \
+    libgtest-dev protobuf-compiler-grpc python3-scapy \
+    python3-pip python3 meson python3-pyelftools curl \
+    build-essential libbsd-dev libelf-dev libjson-c-dev \
+    libnl-3-dev libnl-cli-3-dev libnuma-dev libpcap-dev \
+    meson pkg-config libbpf-dev gcc-multilib clang llvm \
+    lld m4 vim wget libprotobuf17
+
+RUN pip install protobuf grpcio scapy pyelftools meson
+
 
 # BESS pre-reqs
 WORKDIR /bess
-ARG BESS_COMMIT=dpdk-2011-focal
-RUN git clone https://github.com/omec-project/bess.git .
+ARG BESS_COMMIT=dpdk-2303
+RUN git clone https://github.com/maryamtahhan/bess .
 RUN git checkout ${BESS_COMMIT}
 RUN cp -a protobuf /protobuf
 
@@ -23,14 +46,18 @@ RUN apt-get update && \
     apt-get -y install --no-install-recommends \
         ca-certificates \
         libelf-dev \
-        libbpf0
+        libbpf0 \
+        libgoogle-glog-dev
 
 ARG MAKEFLAGS
 ENV PKG_CONFIG_PATH=/usr/lib64/pkgconfig
 WORKDIR /bess
 
 # Patch and build DPDK
-RUN ./build.py dpdk
+RUN ./build.py -v dpdk
+
+# Build CNDP
+RUN ./build.py -v cndp
 
 # Plugins
 RUN mkdir -p plugins
@@ -55,17 +82,25 @@ RUN ./build_bess.sh && \
     cp -r core/pb /pb
 
 # Stage bess: creates the runtime image of BESS
-FROM python:3.11.3-slim AS bess
+#FROM python:3.11.3-slim AS bess
+FROM ubuntu:focal AS bess
+ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        gcc \
-        libgraph-easy-perl \
         iproute2 \
-        iptables \
         iputils-ping \
-        tcpdump && \
-    rm -rf /var/lib/apt/lists/* && \
-    pip install --no-cache-dir \
+        tcpdump \
+        libgoogle-glog-dev \
+        libprotobuf-c-dev \
+        libprotobuf-c1 \
+        libprotobuf-dev \
+        libprotobuf17 \
+        python3-pip \
+        libgrpc++-dev \
+        libgrpc++ \
+        python3-protobuf && \
+    rm -rf /var/lib/apt/lists/*
+RUN pip install --no-cache-dir \
         flask \
         grpcio \
         iptools \
@@ -73,9 +108,9 @@ RUN apt-get update && \
         protobuf==3.20.0 \
         psutil \
         pyroute2 \
-        scapy && \
-    apt-get --purge remove -y \
-        gcc
+        glog \
+        scapy
+
 COPY --from=bess-build /opt/bess /opt/bess
 COPY --from=bess-build /bin/bessd /bin/bessd
 COPY --from=bess-build /bin/modules /bin/modules
@@ -97,12 +132,28 @@ RUN apt-get update && apt-get install -y \
     libnuma1 \
     libpcap0.8 \
     pkg-config \
+    libgoogle-glog-dev \
+    libprotobuf-dev \
+    libprotobuf-c1 \
+    libprotobuf17 \
     && rm -rf /var/lib/apt/lists/*
-COPY --from=bess-build /usr/bin/cndpfwd /usr/bin/
+RUN pip install --no-cache-dir \
+        flask \
+        grpcio \
+        iptools \
+        mitogen \
+        protobuf==3.20.0 \
+        psutil \
+        pyroute2 \
+        glog \
+        scapy
+#COPY --from=bess-build /usr/bin/cndpfwd /usr/bin/
 COPY --from=bess-build /usr/local/lib/x86_64-linux-gnu/*.so /usr/local/lib/x86_64-linux-gnu/
 COPY --from=bess-build /usr/local/lib/x86_64-linux-gnu/*.a /usr/local/lib/x86_64-linux-gnu/
 COPY --from=bess-build /usr/lib/libxdp* /usr/lib/
 COPY --from=bess-build /lib/x86_64-linux-gnu/libjson-c.so* /lib/x86_64-linux-gnu/
+
+ENV PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 
 ENV PYTHONPATH="/opt/bess"
 WORKDIR /opt/bess/bessctl
@@ -121,6 +172,7 @@ RUN mkdir /bess_pb && \
 
 FROM bess-deps AS py-pb
 RUN pip install grpcio-tools==1.26
+RUN apt-get update && apt-get install libgoogle-glog-dev
 RUN mkdir /bess_pb && \
     python -m grpc_tools.protoc -I /usr/include -I /protobuf/ \
         /protobuf/*.proto /protobuf/ports/*.proto \
