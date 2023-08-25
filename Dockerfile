@@ -98,6 +98,8 @@ RUN apt-get update && \
         python3-pip \
         libgrpc++-dev \
         libgrpc++ \
+        kmod \
+        libgraph-easy-perl \
         python3-protobuf && \
     rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir \

@@ -24,7 +24,7 @@ mode="dpdk"
 # Gateway interface(s)
 #
 # In the order of ("s1u" "sgi")
-ifaces=("ens803f2" "ens803f3")
+ifaces=("eno1" "eno2")
 
 # Static IP addresses of gateway interface(s) in cidr format
 #
@@ -34,7 +34,7 @@ ipaddrs=(198.18.0.1/30 198.19.0.1/30)
 # MAC addresses of gateway interface(s)
 #
 # In the order of (s1u sgi)
-macaddrs=(9e:b2:d3:34:ab:27 c2:9c:55:d4:8a:f6)
+macaddrs=(24:6e:96:5c:67:e2 24:6e:96:5c:67:e4)
 
 # Static IP addresses of the neighbors of gateway interface(s)
 #
@@ -44,7 +44,7 @@ nhipaddrs=(198.18.0.2 198.19.0.2)
 # Static MAC addresses of the neighbors of gateway interface(s)
 #
 # In the order of (n-s1u n-sgi)
-nhmacaddrs=(22:53:7a:15:58:50 22:53:7a:15:58:50)
+nhmacaddrs=(ec:f4:bb:c0:bc:f8 ec:f4:bb:c0:bc:fa)
 
 # IPv4 route table entries in cidr format per port
 #
@@ -166,7 +166,7 @@ sudo rm -rf /var/run/netns/pause
 make docker-build
 
 if [ "$mode" == 'dpdk' ]; then
-	DEVICES=${DEVICES:-'--device=/dev/vfio/48 --device=/dev/vfio/49 --device=/dev/vfio/vfio'}
+	DEVICES=${DEVICES:-'--device=/dev/vfio/23 --device=/dev/vfio/24 --device=/dev/vfio/vfio'}
 	PRIVS='--cap-add IPC_LOCK'
 
 elif [[ "$mode" == 'af_xdp' || "$mode" == 'cndp' ]]; then
@@ -218,8 +218,8 @@ fi
 
 # Run bessd
 docker run --name bess -td --restart unless-stopped \
-	--cpuset-cpus=12-13 \
-	--ulimit memlock=-1 -v /dev/hugepages:/dev/hugepages \
+	--cpuset-cpus=12-13 --cap-add=ALL \
+	--ulimit memlock=-1 -v /mnt/huge:/mnt/huge \
 	-v "$PWD/conf":/opt/bess/bessctl/conf \
 	--net container:pause \
 	$PRIVS \
