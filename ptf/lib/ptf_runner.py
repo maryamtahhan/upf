@@ -229,7 +229,7 @@ def main():
             trex_args = None
         else:
             trex_args = "--software --no-hw-flow-stat"
-        
+
         trex_daemon_client = CTRexClient(args.trex_address, trex_args=trex_args)
 
         info("Starting TRex daemon client...")

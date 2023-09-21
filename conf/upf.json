@@ -6,6 +6,7 @@
     "": "mode: cndp",
     "mode": "dpdk",
 
+
     "table_sizes": {
         "": "Example sizes based on sim mode and 50K sessions. Customize as per your control plane",
         "": "50K per unique tuple, we send 4 unique PDR patterns",
@@ -62,13 +63,13 @@
 
     "": "Gateway interfaces",
     "access": {
-        "ifname": "ens803f2",
+        "ifname": "ens3f0np0",
         "": "cndp_jsonc_file: conf/cndp_upf_1worker.jsonc"
     },
 
     "": "UE IP Natting. Update the line below to `\"ip_masquerade\": \"<ip> [or <ip>]\"` to enable",
     "core": {
-        "ifname": "ens803f3",
+        "ifname": "ens3f0np1",
         "": "cndp_jsonc_file: conf/cndp_upf_1worker.jsonc",
         "": "ip_masquerade: 18.0.0.1 or 18.0.0.2 or 18.0.0.3"
     },
