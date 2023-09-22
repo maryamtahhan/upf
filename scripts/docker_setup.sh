@@ -15,16 +15,16 @@ metrics_port=8080
 # "af_packet" uses AF_PACKET sockets via DPDK's vdev for pkt I/O.
 # "sim" uses Source() modules to simulate traffic generation
 # "cndp" uses kernel AF-XDP. It supports ZC and XDP offload if driver and NIC supports it. It's tested on Intel 800 series n/w adapter.
-mode="dpdk"
+#mode="dpdk"
 #mode="cndp"
-#mode="af_xdp"
+mode="af_xdp"
 #mode="af_packet"
 #mode="sim"
 
 # Gateway interface(s)
 #
 # In the order of ("s1u" "sgi")
-ifaces=("ens3f0np0" "ens3f0np1")
+ifaces=("ens3f0np0" "ens3f1np1")
 
 # Static IP addresses of gateway interface(s) in cidr format
 #
@@ -92,12 +92,17 @@ function move_ifaces() {
 	for ((i = 0; i < num_ifaces; i++)); do
 		sudo ip link set "${ifaces[$i]}" netns pause up
 		sudo ip netns exec pause ip link set "${ifaces[$i]}" promisc off
-		sudo ip netns exec pause ip link set "${ifaces[$i]}" xdp off
+		# sudo ip netns exec pause ip link set "${ifaces[$i]}" xdp off
 		if [ "$mode" == 'af_xdp' ]; then
 			sudo ip netns exec pause ethtool --features "${ifaces[$i]}" ntuple off
 			sudo ip netns exec pause ethtool --features "${ifaces[$i]}" ntuple on
-			sudo ip netns exec pause ethtool -N "${ifaces[$i]}" flow-type udp4 action 0
-			sudo ip netns exec pause ethtool -N "${ifaces[$i]}" flow-type tcp4 action 0
+			# sudo ip netns exec pause ethtool -N "${ifaces[$i]}" flow-type udp4 action 0
+			# sudo ip netns exec pause ethtool -N "${ifaces[$i]}" flow-type tcp4 action 0
+            # sudo ip netns exec pause ethtool -L "${ifaces[$i]}" combined 2
+            sudo ip netns exec pause ethtool -N "${ifaces[$i]}" rx-flow-hash udp4 fn
+            sudo ip netns exec pause ethtool -N "${ifaces[$i]}" flow-type udp4 dst-port 2152 action 0
+            sudo ip netns exec pause ethtool -N "${ifaces[$i]}" flow-type udp4 dst-port 8805 action 1
+            #sudo ip netns exec pause ethtool -N "${ifaces[$i]}" flow-type tcp4 action -1
 			sudo ip netns exec pause ethtool -u "${ifaces[$i]}"
 		fi
 		if [ "$mode" == 'cndp' ]; then
