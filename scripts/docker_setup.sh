@@ -166,7 +166,7 @@ sudo rm -rf /var/run/netns/pause
 make docker-build
 
 if [ "$mode" == 'dpdk' ]; then
-	DEVICES=${DEVICES:-'--device=/dev/vfio/23 --device=/dev/vfio/24 --device=/dev/vfio/vfio'}
+	DEVICES=${DEVICES:-'--device=/dev/vfio/noiommu-0 --device=/dev/vfio/noiommu-1 --device=/dev/vfio/vfio'}
 	PRIVS='--cap-add IPC_LOCK'
 
 elif [[ "$mode" == 'af_xdp' || "$mode" == 'cndp' ]]; then

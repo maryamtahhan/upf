@@ -14,13 +14,13 @@ import conf.sim as sim
 
 pkt_size = 128
 flows = 5000
-workers=[22, 23, 24, 25]
+workers=[23, 25, 27, 29]
 gtppsc = False
 qfi = 9
-smac_access = "40:a6:b7:78:3f:bc"
-smac_core = "40:a6:b7:78:3f:b8"
-dmac_access = "40:a6:b7:78:3f:ec"
-dmac_core = "40:a6:b7:78:3f:e8"
+smac_access = "40:a6:b7:96:bc:50"
+smac_core = "40:a6:b7:96:bc:51"
+dmac_access = "40:a6:b7:96:c8:d8"
+dmac_core = "40:a6:b7:96:c8:d9"
 
 if gtppsc:
     # flow create 0 ingress pattern eth / ipv4 / udp / gtpu / gtp_psc / ipv4 / end actions rss types ipv4 l3-src-only end key_len 0 queues end / end
