@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sriovdp-config
+  namespace: kube-system
+data:
+  config.json: |
+    {
+      "resourceList": [{
+            "resourceName": "intel_sriov_access",
+            "resourcePrefix": "intel.com",
+            "selectors": [{
+                "pciAddresses": ["0000:d8:00.0"]
+            }]
+        },
+        {
+          "resourceName": "intel_sriov_core",
+          "resourcePrefix": "intel.com",
+          "selectors": [{
+              "pciAddresses": ["0000:d8:00.1"]
+          }]
+        }
+      ]
+    }

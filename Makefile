@@ -21,9 +21,9 @@ CPU                      ?= native
 ENABLE_NTF               ?= 0
 
 ## Docker related
-DOCKER_REGISTRY          ?=
-DOCKER_REPOSITORY        ?=
-DOCKER_TAG               ?= ${VERSION}
+DOCKER_REGISTRY          ?= quay.io/
+DOCKER_REPOSITORY        ?= mtahhan/
+DOCKER_TAG               ?= latest
 DOCKER_IMAGENAME         := ${DOCKER_REGISTRY}${DOCKER_REPOSITORY}${PROJECT_NAME}:${DOCKER_TAG}
 DOCKER_BUILDKIT          ?= 1
 DOCKER_BUILD_ARGS        ?= --build-arg MAKEFLAGS=-j${NPROCS} --build-arg CPU

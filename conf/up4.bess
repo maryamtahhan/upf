@@ -98,7 +98,8 @@ else:
 
 
 # Initialize workers
-cores = get_process_affinity()
+#cores = get_process_affinity()
+cores = [23, 25, 27, 29]
 workers = cores[:parser.workers]
 if len(cores) > parser.workers:
     nonworkers = cores[parser.workers:]
