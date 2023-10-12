@@ -62,7 +62,7 @@ spec:
   initContainers:
   # Currently CNI doesn't allow metric we're doing it here instead of net-attach-def
   - name: routes
-    image: quay.io/mtahhan/upf-epc-bess:latest
+    image: quay.io/mtahhan/upf-epc-bess-af-xdp-dpdk:latest
     env:
     - name: ENB_SUBNET
       value: '11.1.1.128/25'
@@ -95,7 +95,7 @@ spec:
 
   # # Reqd. if working with AF_PACKET/AF_XDP so that kernel does not reply to GTP-U packets
   # - name: iptables
-  #   image: quay.io/mtahhan/upf-epc-bess:latest
+  #   image: quay.io/mtahhan/upf-epc-bess-af-xdp-dpdk:latest
   #   command: [ "sh", "-xec"]
   #   args:
   #   - iptables -I OUTPUT -p icmp --icmp-type port-unreachable -j DROP;
@@ -106,7 +106,7 @@ spec:
 
   containers:
   - name: routectl
-    image: quay.io/mtahhan/upf-epc-bess:latest
+    image: quay.io/mtahhan/upf-epc-bess-af-xdp-dpdk:latest
     command: ["/opt/bess/bessctl/conf/route_control.py"]
     args:
     - -i
@@ -120,7 +120,7 @@ spec:
         cpu: 256m
         memory: 128Mi
   - name: bessd
-    image: quay.io/mtahhan/upf-epc-bess:latest
+    image: quay.io/mtahhan/upf-epc-bess-af-xdp-dpdk:latest
     stdin: true
     tty: true
     args:
@@ -145,7 +145,7 @@ spec:
     - name: hugepages
       mountPath: /dev/hugepages
   - name: web
-    image: quay.io/mtahhan/upf-epc-bess:latest
+    image: quay.io/mtahhan/upf-epc-bess-af-xdp-dpdk:latest
     command: ["bessctl"]
     args:
     - http
@@ -156,7 +156,7 @@ spec:
         cpu: 256m
         memory: 128Mi
   - name: pfcpiface
-    image: quay.io/mtahhan/upf-epc-pfcpiface:latest
+    image: quay.io/mtahhan/upf-epc-pfcpiface-af-xdp-dpdk:latest
     command: ["pfcpiface"]
     args:
     - -bess
