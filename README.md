@@ -204,3 +204,171 @@ out to the project maintainers on the ONF Community Slack ([aether-dev](https://
 ## License
 
 The project is licensed under the [Apache License, version 2.0](./LICENSES/Apache-2.0.txt).
+
+## UPF in K8s with DPDK-AF_XDP instructions
+
+Ensure to interfaces are bound to DPDK
+
+```
+[upf]# ls /etc/cni/net.d
+[upf]# rm -rf /etc/cni/net.d/*
+[upf]# swapoff -av
+[upf]# free -h
+[upf]# kubeadm init --pod-network-cidr=10.244.0.0/16
+[upf]# export KUBECONFIG=/etc/kubernetes/admin.conf
+[upf]# kubectl taint nodes --all node-role.kubernetes.io/control-plane-
+[upf]# kubectl label node wsfd-advnetlab47.anl.lab.eng.bos.redhat.com cndp="true"
+[upf]# kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
+[upf]# kubectl describe node
+[upf]# kubectl get node #### wait for ready
+[upf]# kubectl apply -f https://raw.githubusercontent.com/k8snetworkplumbingwg/multus-cni/master/deployments/multus-daemonset.yml
+[upf]# kubectl create -f deployments/sriovdp-config.yaml
+[upf]# kubectl create -f deployments/sriovdp-daemonset.yaml
+```
+
+```
+[upf]#  kubectl get ds -n kube-system kube-sriov-device-plugin-amd64
+NAME                             DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR              AGE
+kube-sriov-device-plugin-amd64   1         1         1       1            1           kubernetes.io/arch=amd64   64s
+
+[upf]# kubectl get node  -o json | jq '.items[].status.allocatable'
+{
+  "cpu": "64",
+  "ephemeral-storage": "106539201155",
+  "hugepages-1Gi": "0",
+  "hugepages-2Mi": "8704Mi",
+  "intel.com/intel_sriov_access": "1",
+  "intel.com/intel_sriov_vfio_core": "1",
+  "memory": "187608100Ki",
+  "pods": "110"
+}
+
+[upf]# kubectl create -f deployments/upf-k8s-af-xdp-dpdk.yaml
+networkattachmentdefinition.k8s.cni.cncf.io/access-net created
+networkattachmentdefinition.k8s.cni.cncf.io/core-net created
+configmap/upf-conf created
+pod/upf created
+```
+
+```
+[upf]# kubectl port-forward  upf 8000:8000
+```
+
+Assuming you've ssh'd to your test machine with port forwarding:
+
+```
+ssh -L 8000:localhost:8000 user@dut.example.com
+```
+
+You can now use your browser to view the UPF pipeline by navigating to `localhost:8000`.
+
+This next command to install the PDRs takes a while. Be Patient. You can see the PDRs updating.
+
+```
+[upf]# kubectl exec  upf --container pfcpiface -- pfcpiface -config /opt/bess/bessctl/conf/upf.json -bess localhost:10514  -simulate create
+time="2023-10-11T09:49:07Z" level=info msg="{Mode:af_xdp AccessIface:{IfName:ens3f0np0} CoreIface:{IfName:ens3f1np1} CPIface:{Peers:[148.162.12.214] UseFQDN:false NodeID: HTTPPort:8080 Dnn:internet EnableUeIPAlloc:false UEIPPool:10.250.0.0/16} P4rtcIface:{SliceID:0 AccessIP:172.17.0.1/32 P4rtcServer:onos P4rtcPort:51001 QFIToTC:map[] DefaultTC:3 ClearStateOnRestart:false} EnableP4rt:false EnableFlowMeasure:false SimInfo:{MaxSessions:50000 StartUEIP:16.0.0.1 StartENBIP:11.1.1.129 StartAUPFIP:13.1.1.199 N6AppIP:6.6.6.6 N9AppIP:9.9.9.9 StartN3TEID:0x30000000 StartN9TEID:0x90000000} ConnTimeout:0 ReadTimeout:15 EnableNotifyBess:false EnableEndMarker:false NotifySockAddr: EndMarkerSockAddr: LogLevel:debug QciQosConfig:[{QCI:0 CBS:50000 PBS:50000 EBS:50000 BurstDurationMs:10 SchedulingPriority:7} {QCI:9 CBS:2048 PBS:2048 EBS:2048 BurstDurationMs:0 SchedulingPriority:6} {QCI:8 CBS:2048 PBS:2048 EBS:2048 BurstDurationMs:0 SchedulingPriority:5}] SliceMeterConfig:{N6RateBps:500000000 N6BurstBytes:625000 N3RateBps:500000000 N3BurstBytes:625000} MaxReqRetries:5 RespTimeout:2s EnableHBTimer:false HeartBeatInterval:}" func=main.main file="/pfcpiface/cmd/pfcpiface/main.go:37"
+time="2023-10-11T09:49:07Z" level=info msg="SetUpfInfo bess" func="github.com/omec-project/upf-epc/pfcpiface.(*bess).SetUpfInfo" file="/pfcpiface/pfcpiface/bess.go:675"
+time="2023-10-11T09:49:07Z" level=info msg="bessIP  localhost:10514" func="github.com/omec-project/upf-epc/pfcpiface.(*bess).SetUpfInfo" file="/pfcpiface/pfcpiface/bess.go:679"
+time="2023-10-11T09:49:07Z" level=debug msg="Clearing all the state in BESS" func="github.com/omec-project/upf-epc/pfcpiface.(*bess).clearState" file="/pfcpiface/pfcpiface/bess.go:631"
+time="2023-10-11T09:49:07Z" level=info msg="create sessions: 50000" func="github.com/omec-project/upf-epc/pfcpiface.(*upf).sim" file="/pfcpiface/pfcpiface/grpcsim.go:72"
+time="2023-10-11T09:58:07Z" level=info msg="Sessions/s: 92.67690409334031" func="github.com/omec-project/upf-epc/pfcpiface.(*upf).sim" file="/pfcpiface/pfcpiface/grpcsim.go:271"
+```
+### Kubeadm reset
+
+```
+[upf]# kubeadm reset
+[upf]# unset KUBECONFIG
+[upf]# rm -rf $HOME/.kube/
+[upf]# systemctl daemon-reload
+[upf]# systemctl restart kubelet
+[upf]# systemctl restart containerd
+[upf]# ls /etc/cni/net.d
+[upf]# rm -rf /etc/cni/net.d/*
+[upf]# swapoff -av
+[upf]# free -h
+```
+
+Then jump back to the previous section where `kubeadm init ...` is called.
+
+### Common issues
+
+#### Loopback CNI issue when creating UPF:
+
+```
+Events:
+  Type     Reason                  Age                   From               Message
+  ----     ------                  ----                  ----               -------
+  Normal   Scheduled               13m                   default-scheduler  Successfully assigned default/upf to wsfd-advnetlab47.anl.lab.eng.bos.redhat.com
+  Warning  FailedCreatePodSandBox  13m                   kubelet            Failed to create pod sandbox: rpc error: code = Unknown desc = failed to setup network for sandbox "5805bc533a32ad79bf5a2bc87a9d831017190eb83d904b151d9c28ca38a5f4f4": plugin type="loopback" failed (add): failed to find plugin "loopback" in path [/opt/cni/bin]
+  Normal   SandboxChanged          3m10s (x49 over 13m)  kubelet            Pod sandbox changed, it will be killed and re-created.
+```
+
+Soln: Build and install all the default cni plugins.
+
+```
+[plugins]# dnf install golang
+[plugins]# git clone https://github.com/containernetworking/plugins.git
+[plugins]# cd plugins
+[plugins]# ./build_linux.sh
+[plugins]# ls bin/
+bandwidth  bridge  dhcp  dummy  firewall  host-device  host-local  ipvlan  loopback  macvlan  portmap  ptp  sbr  static  tap  tuning  vlan  vrf
+[plugins]# cp /root/git-workspace/plugins/bin/loopback /opt/cni/bin/
+
+[plugins]#  cat >/etc/cni/net.d/99-loopback.conf <<EOF
+{
+	"cniVersion": "0.2.0",
+	"name": "lo",
+	"type": "loopback"
+}
+EOF
+```
+
+#### Disable zram swap Fedora 38
+
+Details can be found (here)[https://fedoraproject.org/wiki/Changes/SwapOnZRAM#:~:text=The%20swap%2Don%2Dzram%20feature,and%20customized%20by%20editing%20it].
+
+```
+sudo touch /etc/systemd/zram-generator.conf
+```
+
+
+#### If you are using VFs rather than a PF
+
+Note, this won't work for AF_XDP as there's no VF driver that supports AF_XDP right now.
+But in the case of DPDK PMD you will need to move from the HostDevice CNI used in `upf-k8s-af-xdp-dpdk.yaml`
+to the SR_IOV CNI.
+
+Install the SR_IOV CNI
+```
+ git clone https://github.com/k8snetworkplumbingwg/sriov-cni.git
+ cd sriov-cni/
+ kubectl apply -f images/sriov-cni-daemonset.yaml
+```
+
+Then update the `deployments/upf-k8s.yaml` to use it.
+
+#### NO IP addresses available in range error
+
+```
+Events:
+  Type     Reason                  Age   From               Message
+  ----     ------                  ----  ----               -------
+  Normal   Scheduled               17s   default-scheduler  Successfully assigned default/upf to wsfd-advnetlab47.anl.lab.eng.bos.redhat.com
+  Normal   AddedInterface          17s   multus             Add eth0 [10.244.0.2/24] from cbr0
+  Warning  FailedCreatePodSandBox  16s   kubelet            Failed to create pod sandbox: rpc error: code = Unknown desc = failed to setup network for sandbox "ed81c0503efcab93b8e2f0510e9b1417fb259b3f0e055209c6d59b759b897b64": plugin type="multus" name="multus-cni-network" failed (add): [default/upf/0a9c5e41-58b0-4ebe-9ada-bfcd142349a0:access-net]: error adding container to network "access-net": failed to allocate for range 0: no IP addresses available in range set: 198.18.0.1-198.18.0.1
+  Normal   AddedInterface          4s    multus             Add eth0 [10.244.0.3/24] from cbr0
+  Warning  FailedCreatePodSandBox  3s    kubelet            Failed to create pod sandbox: rpc error: code = Unknown desc = failed to setup network for sandbox "267307c6f3aa6205c26ce780f26f91d86d7738888a76f620652a9396b7a45bd3": plugin type="multus" name="multus-cni-network" failed (add): [default/upf/0a9c5e41-58b0-4ebe-9ada-bfcd142349a0:access-net]: error adding container to network "access-net": failed to allocate for range 0: no IP addresses available in range set: 198.18.0.1-198.18.0.1
+[upf]# ls /var/lib/cni/networks/kubernetes/
+ls: cannot access '/var/lib/cni/networks/kubernetes/': No such file or directory
+[upf]# ls /var/lib/cni/networks/
+access-net  cbr0  core-net
+[upf]# ls /var/lib/cni/networks/access-net/
+198.18.0.1  last_reserved_ip.0  lock
+[upf]#  kubectl describe upf^C
+[upf]# rm -rf  /var/lib/cni/networks/
+access-net/ cbr0/       core-net/
+[upf]# rm -rf  /var/lib/cni/networks/
+access-net/ cbr0/       core-net/
+[upf]# rm -rf  /var/lib/cni/networks/access-net/*
+[upf]# rm -rf  /var/lib/cni/networks/core-net/*
+```
