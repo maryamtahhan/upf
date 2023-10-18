@@ -147,7 +147,7 @@ class Port:
             try:
                 # Initialize kernel datapath.
                 # AF_XDP requires that num_rx_qs == num_tx_qs
-                kwargs = {"vdev" : "net_af_xdp{},iface={},start_queue=0,queue_count={}"
+                kwargs = {"vdev" : "net_af_xdp{},iface={},,busy_budget=32,start_queue=22,queue_count={}"
                           .format(idx, name, num_q), "num_out_q": num_q, "num_inc_q": num_q}
                 self.init_datapath(**kwargs)
             except:

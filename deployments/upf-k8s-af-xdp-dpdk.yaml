@@ -79,17 +79,19 @@ spec:
       ip link set ens3f0np0 promisc off;
       ip link set ens3f1np1 promisc off;
       ethtool --features ens3f0np0 ntuple off;
-      ethtool --features ens3f0np0 ntuple on;
       ethtool --features ens3f1np1 ntuple off;
+      ethtool --features ens3f0np0 ntuple on;
       ethtool --features ens3f1np1 ntuple on;
       ethtool -N ens3f0np0 rx-flow-hash udp4 fn;
-      ethtool -N ens3f0np0 flow-type udp4 dst-port 2152 action 0;
+      ethtool -N ens3f0np0 flow-type udp4 dst-port 2152 action 22;
       ethtool -N ens3f0np0 flow-type udp4 dst-port 8805 action 1;
       ethtool -N ens3f1np1 rx-flow-hash udp4 fn;
-      ethtool -N ens3f1np1 flow-type udp4 dst-port 2152 action 0;
+      ethtool -N ens3f1np1 flow-type udp4 dst-port 2152 action 22;
       ethtool -N ens3f1np1 flow-type udp4 dst-port 8805 action 1;
       ethtool -u ens3f0np0;
       ethtool -u ens3f1np1;
+# ethtool -X ens3f0np0 equal 4 start 22;
+# ethtool -X ens3f1np1 equal 4 start 22;
     securityContext:
       privileged: true
 
