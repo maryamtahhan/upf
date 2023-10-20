@@ -1,0 +1,156 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2019 Intel Corporation
+# Copyright 2020 Open Networking Foundation
+---
+apiVersion: "k8s.cni.cncf.io/v1"
+kind: NetworkAttachmentDefinition
+metadata:
+  name: access-net
+  annotations:
+    k8s.v1.cni.cncf.io/resourceName: afxdp/access
+spec:
+  config: '{
+    "cniVersion": "0.3.0",
+    "type": "afxdp",
+    "mode": "primary",
+    "logFile": "afxdp-cni.log",
+    "logLevel": "debug",
+    "ethtoolCmds" : ["-N -device- rx-flow-hash udp4 fn",
+                     "-N -device- flow-type udp4 dst-port 2152 action 22",
+                     "-N -device- flow-type udp4 dst-port 8805 action 1"
+                    ],
+    "ipam": {
+        "type": "host-local",
+        "subnet": "198.18.0.0/30",
+        "rangeStart": "198.18.0.1",
+        "rangeEnd": "198.18.0.1",
+        "gateway": "198.18.0.2"
+    }
+}'
+---
+apiVersion: "k8s.cni.cncf.io/v1"
+kind: NetworkAttachmentDefinition
+metadata:
+  name: core-net
+  annotations:
+    k8s.v1.cni.cncf.io/resourceName: afxdp/core
+spec:
+  config: '{
+    "cniVersion": "0.3.0",
+    "type": "afxdp",
+    "mode": "primary",
+    "logFile": "afxdp-cni.log",
+    "logLevel": "debug",
+    "ethtoolCmds" : ["-N -device- rx-flow-hash udp4 fn",
+                     "-N -device- flow-type udp4 dst-port 2152 action 22",
+                     "-N -device- flow-type udp4 dst-port 8805 action 1"
+                    ],
+    "ipam": {
+        "type": "host-local",
+        "subnet": "198.19.0.0/30",
+        "rangeStart": "198.19.0.1",
+        "rangeEnd": "198.19.0.1",
+        "gateway": "198.19.0.2"
+    }
+}'
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: upf
+  labels:
+    app: upf
+  annotations:
+      k8s.v1.cni.cncf.io/networks: access-net, core-net
+spec:
+  shareProcessNamespace: true
+  initContainers:
+  # Currently CNI doesn't allow metric we're doing it here instead of net-attach-def
+  - name: routes
+    image: quay.io/mtahhan/upf-epc-bess-af-xdp-dpdk-dp:latest
+    env:
+    - name: ENB_SUBNET
+      value: '11.1.1.128/25'
+    - name: S1U_GATEWAY
+      value: '198.18.0.2'
+    - name: SGI_GATEWAY
+      value: '198.19.0.2'
+    command: ["sh", "-xec"]
+    args:
+    - ip route add 11.1.1.128/25 via 198.18.0.2 dev ens3f0np0 metric 100;
+      ip route add default via 198.19.0.2 dev ens3f1np1 metric 100;
+      ip neighbor add 198.18.0.2 lladdr 40:a6:b7:96:bc:50 dev ens3f0np0;
+      ip neighbor add 198.19.0.2 lladdr 40:a6:b7:96:bc:51 dev ens3f1np1;
+    securityContext:
+      privileged: true
+  containers:
+  - name: routectl
+    image: quay.io/mtahhan/upf-epc-bess-af-xdp-dpdk-dp:latest
+    command: ["/opt/bess/bessctl/conf/route_control.py"]
+    args:
+    - -i
+    - ens3f0np0
+    - ens3f1np1
+    env:
+    - name: PYTHONUNBUFFERED
+      value: "1"
+    resources:
+      limits:
+        cpu: 256m
+        memory: 128Mi
+  - name: bessd
+    image: quay.io/mtahhan/upf-epc-bess-af-xdp-dpdk-dp:latest
+    stdin: true
+    tty: true
+    args:
+    - -grpc-url=0.0.0.0:10514
+    env:
+    - name: CONF_FILE
+      value: /opt/bess/bessctl/conf/upf.json
+    lifecycle:
+      postStart:
+        exec:
+          command: ["sh", "-c", "until ss | grep -q 10514; do sleep 5; echo waiting for bessd; done; ./bessctl run up4;"]
+    securityContext:
+      privileged: true
+    resources:
+      limits:
+        hugepages-2Mi: 2Gi
+        cpu: 2
+        memory: 256Mi
+        afxdp/access: '1'
+        afxdp/core: '1'
+    volumeMounts:
+    - name: hugepages
+      mountPath: /dev/hugepages
+  - name: web
+    image: quay.io/mtahhan/upf-epc-bess-af-xdp-dpdk-dp:latest
+    command: ["bessctl"]
+    args:
+    - http
+    - 0.0.0.0
+    - '8000'
+    resources:
+      limits:
+        cpu: 256m
+        memory: 128Mi
+  - name: pfcpiface
+    image: quay.io/mtahhan/upf-epc-pfcpiface-af-xdp-dpdk-dp:latest
+    command: ["pfcpiface"]
+    args:
+    - -bess
+    - localhost:10514
+    - -config
+    - /opt/bess/bessctl/conf/upf.json
+    ports:
+    - name: http
+      containerPort: 8080
+      protocol: TCP
+    resources:
+      limits:
+        cpu: 256m
+        memory: 128Mi
+  volumes:
+  - name: hugepages
+    emptyDir:
+      medium: HugePages
