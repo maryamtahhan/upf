@@ -82,7 +82,9 @@ spec:
       ip neighbor add 198.18.0.2 lladdr 40:a6:b7:96:bc:50 dev ens3f0np0;
       ip neighbor add 198.19.0.2 lladdr 40:a6:b7:96:bc:51 dev ens3f1np1;
     securityContext:
-      privileged: true
+      capabilities:
+        add:
+          - NET_ADMIN
   containers:
   - name: routectl
     image: quay.io/mtahhan/upf-epc-bess-af-xdp-dpdk-dp:latest
@@ -115,7 +117,7 @@ spec:
       privileged: true
     resources:
       limits:
-        hugepages-2Mi: 2Gi
+        hugepages-1Gi: 2Gi
         cpu: 2
         memory: 256Mi
         afxdp/access: '1'

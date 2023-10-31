@@ -142,12 +142,11 @@ class Port:
 
         if conf_mode not in ['af_xdp', 'linux', 'dpdk', 'af_packet', 'sim', 'cndp']:
             raise Exception('Invalid mode: {} selected.'.format(conf_mode))
-
         if conf_mode in ['af_xdp', 'linux']:
             try:
                 # Initialize kernel datapath.
                 # AF_XDP requires that num_rx_qs == num_tx_qs
-                kwargs = {"vdev" : "net_af_xdp{},iface={},,busy_budget=32,start_queue=22,use_cni=1,queue_count={}"
+                kwargs = {"vdev" : "net_af_xdp{},iface={},start_queue=22,queue_count={}"
                           .format(idx, name, num_q), "num_out_q": num_q, "num_inc_q": num_q}
                 self.init_datapath(**kwargs)
             except:
@@ -184,6 +183,7 @@ class Port:
 
             # Attach datapath to worker's root TC
             self.fpi.attach_task(wid=0)
+
 
         if conf_mode == 'dpdk':
             kwargs = None

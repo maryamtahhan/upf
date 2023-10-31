@@ -12,7 +12,7 @@ data:
           {
              "name":"access",
              "mode":"primary",
-             "UdsTimeout":300,
+             "UdsServerDisable": true,
              "devices":[
                 {
                    "name":"ens3f0np0"
@@ -22,7 +22,7 @@ data:
           {
              "name":"core",
              "mode":"primary",
-             "UdsTimeout":300,
+             "UdsServerDisable": true,
              "devices":[
                 {
                    "name":"ens3f1np1"
