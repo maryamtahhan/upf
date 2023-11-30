@@ -33,9 +33,11 @@ RUN pip install protobuf grpcio scapy pyelftools meson
 
 
 # BESS pre-reqs
+WORKDIR /
+ARG BESS_COMMIT=dpdk-2303-patched-cni
+RUN git clone https://github.com/maryamtahhan/bess
 WORKDIR /bess
-ARG BESS_COMMIT=dpdk-2303
-RUN git clone https://github.com/maryamtahhan/bess .
+RUN git pull
 RUN git checkout ${BESS_COMMIT}
 RUN cp -a protobuf /protobuf
 

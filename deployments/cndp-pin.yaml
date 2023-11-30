@@ -15,6 +15,7 @@ spec:
     "mode": "primary",
     "logFile": "afxdp-cni.log",
     "logLevel": "debug",
+    "dpSyncer": true,
     "ethtoolCmds" : ["-N -device- rx-flow-hash udp4 fn",
                      "-N -device- flow-type udp4 dst-port 2152 action 22",
                      "-N -device- flow-type udp4 dst-port 8805 action 1"
@@ -41,6 +42,7 @@ spec:
     "mode": "primary",
     "logFile": "afxdp-cni.log",
     "logLevel": "debug",
+    "dpSyncer": true,
     "ethtoolCmds" : ["-N -device- rx-flow-hash udp4 fn",
                      "-N -device- flow-type udp4 dst-port 2152 action 22",
                      "-N -device- flow-type udp4 dst-port 8805 action 1"
@@ -57,9 +59,9 @@ spec:
 apiVersion: v1
 kind: Pod
 metadata:
-  name: upf
+  name: cndp
   labels:
-    app: upf
+    app: cndp
   annotations:
       k8s.v1.cni.cncf.io/networks: access-net, core-net
 spec:
@@ -67,7 +69,7 @@ spec:
   initContainers:
   # Currently CNI doesn't allow metric we're doing it here instead of net-attach-def
   - name: routes
-    image: quay.io/mtahhan/upf-epc-bess-af-xdp-dpdk-dp:latest
+    image: quay.io/mtahhan/dpdk:latest
     env:
     - name: ENB_SUBNET
       value: '11.1.1.128/25'
@@ -86,40 +88,16 @@ spec:
         add:
           - NET_ADMIN
   containers:
-  - name: routectl
-    image: quay.io/mtahhan/upf-epc-bess-af-xdp-dpdk-dp:latest
-    command: ["/opt/bess/bessctl/conf/route_control.py"]
-    args:
-    - -i
-    - ens3f0np0
-    - ens3f1np1
-    env:
-    - name: PYTHONUNBUFFERED
-      value: "1"
-    resources:
-      limits:
-        cpu: 256m
-        memory: 128Mi
-  - name: bessd
-    image: quay.io/mtahhan/upf-epc-bess-af-xdp-dpdk-dp:latest
-    stdin: true
-    tty: true
-    args:
-    - -grpc-url=0.0.0.0:10514
-    env:
-    - name: CONF_FILE
-      value: /opt/bess/bessctl/conf/upf.json
-    lifecycle:
-      postStart:
-        exec:
-          command: ["sh", "-c", "until ss | grep -q 10514; do sleep 5; echo waiting for bessd; done; ./bessctl run up4;"]
+  - name: cndpfwd
+    command: ["/bin/bash"]
+    args: ["-c", "./jsonc_gen.sh -kp ; cndpfwd -c config.jsonc lb;"]
+    image:  quay.io/mtahhan/cndp-map-pinning:latest
+    imagePullPolicy: IfNotPresent
     securityContext:
-        capabilities:
-          add:
-            - NET_RAW
-            - IPC_LOCK
-            - SYS_NICE
-            - SYS_RESOURCE
+      capabilities:
+        add:
+          - NET_RAW
+          - IPC_LOCK
     resources:
       limits:
         hugepages-1Gi: 2Gi
@@ -130,33 +108,6 @@ spec:
     volumeMounts:
     - name: hugepages
       mountPath: /dev/hugepages
-  - name: web
-    image: quay.io/mtahhan/upf-epc-bess-af-xdp-dpdk-dp:latest
-    command: ["bessctl"]
-    args:
-    - http
-    - 0.0.0.0
-    - '8000'
-    resources:
-      limits:
-        cpu: 256m
-        memory: 128Mi
-  - name: pfcpiface
-    image: quay.io/mtahhan/upf-epc-pfcpiface-af-xdp-dpdk-dp:latest
-    command: ["pfcpiface"]
-    args:
-    - -bess
-    - localhost:10514
-    - -config
-    - /opt/bess/bessctl/conf/upf.json
-    ports:
-    - name: http
-      containerPort: 8080
-      protocol: TCP
-    resources:
-      limits:
-        cpu: 256m
-        memory: 128Mi
   volumes:
   - name: hugepages
     emptyDir:
