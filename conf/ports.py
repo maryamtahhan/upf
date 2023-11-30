@@ -124,6 +124,7 @@ class Port:
         # Initialize route module
         self.rtr = IPLookup(name="{}Routes".format(name))
 
+
         # Default route goes to Sink
         self.rtr.add(prefix='0.0.0.0', prefix_len=0, gate=MAX_GATES-1)
         s = Sink(name="{}bad_route".format(name))
@@ -146,8 +147,8 @@ class Port:
             try:
                 # Initialize kernel datapath.
                 # AF_XDP requires that num_rx_qs == num_tx_qs
-                kwargs = {"vdev" : "net_af_xdp{},iface={},start_queue=22,queue_count={}"
-                          .format(idx, name, num_q), "num_out_q": num_q, "num_inc_q": num_q}
+                kwargs = {"vdev" : "net_af_xdp{},iface={},start_queue=22,queue_count={},use_cni=1,sock=/tmp/afxdp_dp/{}/afxdp.sock"
+                          .format(idx, name, num_q, name), "num_out_q": num_q, "num_inc_q": num_q}
                 self.init_datapath(**kwargs)
             except:
                 if conf_mode == 'linux':

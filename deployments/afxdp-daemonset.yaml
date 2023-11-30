@@ -67,7 +67,7 @@ spec:
       serviceAccountName: afxdp-device-plugin
       containers:
         - name: kube-afxdp
-          image: quay.io/mtahhan/afxdp-device-plugin:latest
+          image: quay.io/mtahhan/afxdp-device-plugin-debug:latest
           imagePullPolicy: IfNotPresent
           securityContext:
             capabilities:
