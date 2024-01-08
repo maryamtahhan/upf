@@ -3,7 +3,7 @@ SPDX-License-Identifier: Apache-2.0
 Copyright 2019 Intel Corporation
 -->
 
-# UPF
+# UPF with DPDK 23.07 patched with the AF_XDP DP integration support and pinned map support
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/omec-project/upf)](https://goreportcard.com/report/github.com/omec-project/upf)
 
