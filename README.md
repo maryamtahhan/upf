@@ -3,7 +3,19 @@ SPDX-License-Identifier: Apache-2.0
 Copyright 2019 Intel Corporation
 -->
 
-# UPF with DPDK 23.07 patched with the AF_XDP DP integration support and pinned map support
+# UPF with DPDK 23.07 patched with the DPDK AF_XDP DP integration support and pinned map support
+
+### Files to use for bpf map pinning WITHOUT bpfman/bpfd:
+
+- afxdp-daemonset-dpdk.yaml
+- upf-k8s-af-xdp-dp-dpdk.yaml
+
+### Files to use for bpf map pinning WITH bpfman/bpfd:
+
+- afxdp-daemonset-dpdk-bpfman.yaml
+- upf-k8s-af-xdp-dp-dpdk.yaml
+
+## Description
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/omec-project/upf)](https://goreportcard.com/report/github.com/omec-project/upf)
 
