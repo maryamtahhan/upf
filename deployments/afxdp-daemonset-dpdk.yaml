@@ -1,3 +1,4 @@
+######## Configuration for DPDK privileged pod (aka vanilla DPDK) #################
 apiVersion: v1
 kind: ConfigMap
 metadata:

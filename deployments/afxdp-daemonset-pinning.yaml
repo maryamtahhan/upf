@@ -1,4 +1,4 @@
-###### BASIC UDS CONFIGURATION ###########
+###### BpfMapPinning in the AF_XDP DP CONFIGURATION ###########
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -13,7 +13,8 @@ data:
           {
              "name":"access",
              "mode":"primary",
-             "UdsTimeout":300,
+             "UdsServerDisable": true,
+             "BpfMapPinningEnable": true,
              "devices":[
                 {
                    "name":"ens3f0np0"
@@ -23,7 +24,8 @@ data:
           {
              "name":"core",
              "mode":"primary",
-             "UdsTimeout":300,
+             "UdsServerDisable": true,
+             "BpfMapPinningEnable": true,
              "devices":[
                 {
                    "name":"ens3f1np1"
@@ -68,15 +70,16 @@ spec:
       serviceAccountName: afxdp-device-plugin
       containers:
         - name: kube-afxdp
-          image: quay.io/mtahhan/afxdp-device-plugin-debug:latest
-          imagePullPolicy: IfNotPresent
+          image: quay.io/mtahhan/afxdp-device-plugin:latest
+          imagePullPolicy: Always
           securityContext:
-            capabilities:
-              drop:
-                - all
-              add:
-                - SYS_ADMIN
-                - NET_ADMIN
+            privileged: true
+            # capabilities:
+            #   drop:
+            #     - all
+            #   add:
+            #     - SYS_ADMIN
+            #     - NET_ADMIN
           resources:
             requests:
               cpu: "250m"
@@ -87,6 +90,9 @@ spec:
           volumeMounts:
             - name: unixsock
               mountPath: /tmp/afxdp_dp/
+            - name: bpfmappinning
+              mountPath: /var/run/afxdp_dp/
+              mountPropagation: Bidirectional
             - name: devicesock
               mountPath: /var/lib/kubelet/device-plugins/
             - name: resources
@@ -101,6 +107,9 @@ spec:
         - name: unixsock
           hostPath:
             path: /tmp/afxdp_dp/
+        - name: bpfmappinning
+          hostPath:
+            path: /var/run/afxdp_dp/
         - name: devicesock
           hostPath:
             path: /var/lib/kubelet/device-plugins/

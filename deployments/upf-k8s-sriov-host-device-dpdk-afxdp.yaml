@@ -1,30 +1,27 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2019 Intel Corporation
 # Copyright 2020 Open Networking Foundation
+# UPF PROVISIONED WITH SR-IOV DP + HOST DEVICE using AF_XDP ports.
+# POD MUST BE PRIVILEGED
 ---
 apiVersion: "k8s.cni.cncf.io/v1"
 kind: NetworkAttachmentDefinition
 metadata:
   name: access-net
   annotations:
-    k8s.v1.cni.cncf.io/resourceName: afxdp/access
+    k8s.v1.cni.cncf.io/resourceName: intel.com/intel_sriov_access
 spec:
   config: '{
-     "cniVersion": "0.3.0",
-    "type": "afxdp",
-    "mode": "primary",
-    "logFile": "afxdp-cni.log",
-    "logLevel": "debug",
-    "ethtoolCmds" : ["-N -device- rx-flow-hash udp4 fn",
-                     "-N -device- flow-type udp4 dst-port 2152 action 22",
-                     "-N -device- flow-type udp4 dst-port 8805 action 1"
-                    ],
+    "cniVersion": "0.3.1",
+    "type": "host-device",
+    "name": "access-net",
+    "pciBusID": "0000:d8:00.0",
     "ipam": {
         "type": "host-local",
-        "subnet": "198.18.0.0/30",
-        "rangeStart": "198.18.0.1",
-        "rangeEnd": "198.18.0.1",
-        "gateway": "198.18.0.2"
+        "subnet": "198.18.0.0/24",
+        "rangeStart": "198.18.0.2",
+        "rangeEnd": "198.18.0.250",
+        "gateway": "198.18.0.1"
     }
 }'
 ---
@@ -33,24 +30,19 @@ kind: NetworkAttachmentDefinition
 metadata:
   name: core-net
   annotations:
-    k8s.v1.cni.cncf.io/resourceName: afxdp/core
+    k8s.v1.cni.cncf.io/resourceName: intel.com/intel_sriov_core
 spec:
   config: '{
-    "cniVersion": "0.3.0",
-    "type": "afxdp",
-    "mode": "primary",
-    "logFile": "afxdp-cni.log",
-    "logLevel": "debug",
-    "ethtoolCmds" : ["-N -device- rx-flow-hash udp4 fn",
-                     "-N -device- flow-type udp4 dst-port 2152 action 22",
-                     "-N -device- flow-type udp4 dst-port 8805 action 1"
-                    ],
+    "cniVersion": "0.3.1",
+    "type": "host-device",
+    "name": "core-net",
+    "pciBusID": "0000:d8:00.1",
     "ipam": {
         "type": "host-local",
-        "subnet": "198.19.0.0/30",
-        "rangeStart": "198.19.0.1",
-        "rangeEnd": "198.19.0.1",
-        "gateway": "198.19.0.2"
+        "subnet": "198.19.0.0/24",
+        "rangeStart": "198.19.0.2",
+        "rangeEnd": "198.19.0.250",
+        "gateway": "198.19.0.1"
     }
 }'
 ---
@@ -61,45 +53,48 @@ metadata:
   labels:
     app: upf
   annotations:
-      k8s.v1.cni.cncf.io/networks: access-net, core-net
+      k8s.v1.cni.cncf.io/networks: '[
+            { "name": "access-net", "interface": "ens3f0np0" },
+            { "name": "core-net", "interface": "ens3f1np1" }
+    ]'
 spec:
   shareProcessNamespace: true
   initContainers:
   # Currently CNI doesn't allow metric we're doing it here instead of net-attach-def
   - name: routes
-    image: quay.io/mtahhan/upf-epc-bess-af-xdp-dpdk:latest
+    image: quay.io/mtahhan/upf-epc-bess:latest
     env:
     - name: ENB_SUBNET
       value: '11.1.1.128/25'
     - name: S1U_GATEWAY
-      value: '198.18.0.2'
+      value: '198.18.0.1'
     - name: SGI_GATEWAY
-      value: '198.19.0.2'
+      value: '198.19.0.1'
     command: ["sh", "-xec"]
     args:
-    - ip route add 11.1.1.128/25 via 198.18.0.2 dev ens3f0np0 metric 100;
-      ip route add default via 198.19.0.2 dev ens3f1np1 metric 100;
+    - ip route add 11.1.1.128/25 via 198.18.0.1 dev ens3f0np0 metric 100;
+      ip route add default via 198.19.0.1 dev ens3f1np1 metric 100;
       ip neighbor add 198.18.0.2 lladdr 40:a6:b7:96:bc:50 dev ens3f0np0;
       ip neighbor add 198.19.0.2 lladdr 40:a6:b7:96:bc:51 dev ens3f1np1;
+      ip link set ens3f0np0 promisc off;
+      ip link set ens3f1np1 promisc off;
+      ethtool --features ens3f0np0 ntuple off;
+      ethtool --features ens3f0np0 ntuple on;
+      ethtool --features ens3f1np1 ntuple off;
+      ethtool --features ens3f1np1 ntuple on;
+      ethtool -N ens3f0np0 rx-flow-hash udp4 fn;
+      ethtool -N ens3f0np0 flow-type udp4 dst-port 2152 action 0;
+      ethtool -N ens3f0np0 flow-type udp4 dst-port 8805 action 1;
+      ethtool -N ens3f1np1 rx-flow-hash udp4 fn;
+      ethtool -N ens3f1np1 flow-type udp4 dst-port 2152 action 0;
+      ethtool -N ens3f1np1 flow-type udp4 dst-port 8805 action 1;
+      ethtool -u ens3f0np0;
+      ethtool -u ens3f1np1;
     securityContext:
-      capabilities:
-        add:
-          - NET_ADMIN
-
-  # # Reqd. if working with AF_PACKET/AF_XDP so that kernel does not reply to GTP-U packets
-  # - name: iptables
-  #   image: quay.io/mtahhan/upf-epc-bess-af-xdp-dpdk:latest
-  #   command: [ "sh", "-xec"]
-  #   args:
-  #   - iptables -I OUTPUT -p icmp --icmp-type port-unreachable -j DROP;
-  #   securityContext:
-  #     capabilities:
-  #       add:
-  #         - NET_ADMIN
-
+      privileged: true
   containers:
   - name: routectl
-    image: quay.io/mtahhan/upf-epc-bess-af-xdp-dpdk:latest
+    image: quay.io/mtahhan/upf-epc-bess:latest
     command: ["/opt/bess/bessctl/conf/route_control.py"]
     args:
     - -i
@@ -113,7 +108,7 @@ spec:
         cpu: 256m
         memory: 128Mi
   - name: bessd
-    image: quay.io/mtahhan/upf-epc-bess-af-xdp-dpdk:latest
+    image: quay.io/mtahhan/upf-epc-bess:latest
     stdin: true
     tty: true
     args:
@@ -132,13 +127,13 @@ spec:
         hugepages-1Gi: 2Gi
         cpu: 2
         memory: 256Mi
-        afxdp/access: '1'
-        afxdp/core: '1'
+        intel.com/intel_sriov_access: '1'
+        intel.com/intel_sriov_core: '1'
     volumeMounts:
     - name: hugepages
       mountPath: /dev/hugepages
   - name: web
-    image: quay.io/mtahhan/upf-epc-bess-af-xdp-dpdk:latest
+    image: quay.io/mtahhan/upf-epc-bess:latest
     command: ["bessctl"]
     args:
     - http
@@ -149,7 +144,7 @@ spec:
         cpu: 256m
         memory: 128Mi
   - name: pfcpiface
-    image: quay.io/mtahhan/upf-epc-pfcpiface-af-xdp-dpdk-dp:latest
+    image: quay.io/mtahhan/upf-epc-pfcpiface:latest
     command: ["pfcpiface"]
     args:
     - -bess

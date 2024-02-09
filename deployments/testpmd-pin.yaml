@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2019 Intel Corporation
 # Copyright 2020 Open Networking Foundation
-# DPDK patched with AF_XDP CNI MULTIPORT SUPPORT
+# DPDK patched with AF_XDP MAP PINNING
 # NOTE/TODO UPDATE TESTPMD IMAGE TO LATEST PATCHSET - CURRENTLY THIS WILL NOT WORK WITH THE REFERENCED IMAGE
 ---
 apiVersion: "k8s.cni.cncf.io/v1"
@@ -17,6 +17,7 @@ spec:
     "mode": "primary",
     "logFile": "afxdp-cni.log",
     "logLevel": "debug",
+    "dpSyncer": true,
     "ethtoolCmds" : ["-N -device- rx-flow-hash udp4 fn",
                      "-N -device- flow-type udp4 dst-port 2152 action 22",
                      "-N -device- flow-type udp4 dst-port 8805 action 1"
@@ -43,6 +44,7 @@ spec:
     "mode": "primary",
     "logFile": "afxdp-cni.log",
     "logLevel": "debug",
+    "dpSyncer": true,
     "ethtoolCmds" : ["-N -device- rx-flow-hash udp4 fn",
                      "-N -device- flow-type udp4 dst-port 2152 action 22",
                      "-N -device- flow-type udp4 dst-port 8805 action 1"
@@ -89,13 +91,13 @@ spec:
           - NET_ADMIN
   containers:
   - name: testpmd
-    image: quay.io/mtahhan/dpdk:latest
+    image: quay.io/mtahhan/dpdk-map-pinning:latest
     command: ["tail", "-f", "/dev/null"]
-    #command: ["sh", "-c", "./build/app/dpdk-testpmd --log-level pmd.net.af_xdp:debug  -l 0-2 --no-pci --main-lcore=2 --vdev net_af_xdp0,iface=ens3f0np0,start_queue=22,queue_count=1,use_cni=1,sock=/tmp/afxdp_dp/ens3f0np0/afxdp.sock --vdev net_af_xdp1,iface=ens3f1np1,start_queue=22,queue_count=1,use_cni=1,sock=/tmp/afxdp_dp/ens3f1np1/afxdp.sock -- -i --a --nb-cores=2 --rxq=1 --txq=1 --forward-mode=macswap;"]
+    imagePullPolicy: Always
     securityContext:
       capabilities:
         add:
-          - NET_RAW
+          - NET_ADMIN
           - IPC_LOCK
     resources:
       limits:

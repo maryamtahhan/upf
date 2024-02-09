@@ -1,4 +1,4 @@
-###### BASIC UDS CONFIGURATION ###########
+############### Configuration for AF_XDP DP with BPFMAN v0.3.0 ##################
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -9,11 +9,14 @@ data:
     {
        "logLevel":"debug",
        "logFile":"afxdp-dp.log",
+       "bpfdClientEnable": true,
        "pools":[
           {
              "name":"access",
              "mode":"primary",
-             "UdsTimeout":300,
+             "UdsServerDisable": true,
+             "BpfByteCodeImage": "quay.io/mtahhan/xsk_def_xdp_prog:latest",
+             "BpfByteCodeFunction": "xsk_def_prog",
              "devices":[
                 {
                    "name":"ens3f0np0"
@@ -23,7 +26,9 @@ data:
           {
              "name":"core",
              "mode":"primary",
-             "UdsTimeout":300,
+             "UdsServerDisable": true,
+             "BpfByteCodeImage": "quay.io/mtahhan/xsk_def_xdp_prog:latest",
+             "BpfByteCodeFunction": "xsk_def_prog",
              "devices":[
                 {
                    "name":"ens3f1np1"
@@ -68,15 +73,16 @@ spec:
       serviceAccountName: afxdp-device-plugin
       containers:
         - name: kube-afxdp
-          image: quay.io/mtahhan/afxdp-device-plugin-debug:latest
-          imagePullPolicy: IfNotPresent
+          image: quay.io/mtahhan/afxdp-device-plugin:latest
+          imagePullPolicy: Always
           securityContext:
-            capabilities:
-              drop:
-                - all
-              add:
-                - SYS_ADMIN
-                - NET_ADMIN
+            privileged: true
+            # capabilities:
+            #   drop:
+            #     - all
+            #   add:
+            #     - SYS_ADMIN
+            #     - NET_ADMIN
           resources:
             requests:
               cpu: "250m"
@@ -87,6 +93,9 @@ spec:
           volumeMounts:
             - name: unixsock
               mountPath: /tmp/afxdp_dp/
+            - name: bpfmappinning
+              mountPath: /var/run/afxdp_dp/
+              mountPropagation: Bidirectional
             - name: devicesock
               mountPath: /var/lib/kubelet/device-plugins/
             - name: resources
@@ -97,10 +106,16 @@ spec:
               mountPath: /var/log/afxdp-k8s-plugins/
             - name: cnibin
               mountPath: /opt/cni/bin/
+            - name: bpfd-maps
+              mountPath: /run/bpfd/fs/maps/
+              readOnly: true
       volumes:
         - name: unixsock
           hostPath:
             path: /tmp/afxdp_dp/
+        - name: bpfmappinning
+          hostPath:
+            path: /var/run/afxdp_dp/
         - name: devicesock
           hostPath:
             path: /var/lib/kubelet/device-plugins/
@@ -119,3 +134,50 @@ spec:
         - name: cnibin
           hostPath:
             path: /opt/cni/bin/
+        - name: bpfd-maps
+          hostPath:
+            path: /run/bpfd/fs/maps/
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  labels:
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/instance: xdpprogram-viewer-role
+  name: bpfd-xdpprogram-viewer-role
+rules:
+- apiGroups:
+  - bpfd.dev
+  resources:
+  - xdpprograms
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - bpfd.dev
+  resources:
+  - xdpprograms/status
+  - bpfprograms
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name:  bpfd-xdpprogram-viewer-role-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name:  bpfd-xdpprogram-viewer-role
+subjects:
+- kind: ServiceAccount
+  name: afxdp-device-plugin
+  namespace: kube-system
