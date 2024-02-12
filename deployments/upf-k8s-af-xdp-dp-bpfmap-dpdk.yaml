@@ -116,13 +116,13 @@ spec:
         exec:
           command: ["sh", "-c", "until ss | grep -q 10514; do sleep 5; echo waiting for bessd; done; ./bessctl run up4;"]
     securityContext:
-      capabilities:
-        add:
-          - NET_RAW
-          - IPC_LOCK
-          - SYS_NICE
-          - SYS_RESOURCE
-          - NET_ADMIN
+        capabilities:
+          add:
+            - NET_RAW
+            - IPC_LOCK
+            - SYS_NICE
+            - SYS_RESOURCE
+            - NET_ADMIN
     resources:
       limits:
         hugepages-1Gi: 2Gi
