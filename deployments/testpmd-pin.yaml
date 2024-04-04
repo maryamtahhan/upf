@@ -18,16 +18,13 @@ spec:
     "logFile": "afxdp-cni.log",
     "logLevel": "debug",
     "dpSyncer": true,
-    "ethtoolCmds" : ["-N -device- rx-flow-hash udp4 fn",
-                     "-N -device- flow-type udp4 dst-port 2152 action 22",
-                     "-N -device- flow-type udp4 dst-port 8805 action 1"
-                    ],
+    "ethtoolCmds" : ["-L -device- combined 1"],
     "ipam": {
         "type": "host-local",
-        "subnet": "198.18.0.0/30",
-        "rangeStart": "198.18.0.1",
-        "rangeEnd": "198.18.0.1",
-        "gateway": "198.18.0.2"
+        "subnet": "198.18.0.0/24",
+        "rangeStart": "198.18.0.2",
+        "rangeEnd": "198.18.0.250",
+        "gateway": "198.18.0.1"
     }
 }'
 ---
@@ -45,16 +42,13 @@ spec:
     "logFile": "afxdp-cni.log",
     "logLevel": "debug",
     "dpSyncer": true,
-    "ethtoolCmds" : ["-N -device- rx-flow-hash udp4 fn",
-                     "-N -device- flow-type udp4 dst-port 2152 action 22",
-                     "-N -device- flow-type udp4 dst-port 8805 action 1"
-                    ],
+    "ethtoolCmds" : ["-L -device- combined 1"],
     "ipam": {
         "type": "host-local",
-        "subnet": "198.19.0.0/30",
-        "rangeStart": "198.19.0.1",
-        "rangeEnd": "198.19.0.1",
-        "gateway": "198.19.0.2"
+        "subnet": "198.19.0.0/24",
+        "rangeStart": "198.19.0.2",
+        "rangeEnd": "198.19.0.250",
+        "gateway": "198.19.0.1"
     }
 }'
 ---
@@ -81,10 +75,12 @@ spec:
       value: '198.19.0.2'
     command: ["sh", "-xec"]
     args:
-    - ip route add 11.1.1.128/25 via 198.18.0.2 dev ens3f0np0 metric 100;
-      ip route add default via 198.19.0.2 dev ens3f1np1 metric 100;
+    - ip route add 11.1.1.128/25 via 198.18.0.1 dev ens3f0np0 metric 100;
+      ip route add default via 198.19.0.1 dev ens3f1np1 metric 100;
       ip neighbor add 198.18.0.2 lladdr 40:a6:b7:96:bc:50 dev ens3f0np0;
       ip neighbor add 198.19.0.2 lladdr 40:a6:b7:96:bc:51 dev ens3f1np1;
+      ip link set ens3f0np0 promisc on;
+      ip link set ens3f1np1 promisc on;
     securityContext:
       capabilities:
         add:
